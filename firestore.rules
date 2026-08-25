@@ -1,0 +1,369 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore para este proyecto. Archivo de referencia
+// versionado junto al código (no se despliega automáticamente con `npm run
+// dev`/`npm run build`, requiere `firebase deploy --only firestore:rules`
+// con el CLI de Firebase inicializado).
+//
+// Por qué existe este archivo: la UI (Header, AdminRoute) oculta o bloquea
+// la navegación según el rol del usuario, pero eso es solo una mejora de UX.
+// Nada impide que alguien llame directamente al SDK de Firestore desde la
+// consola del navegador. La única protección real contra que un usuario lea
+// o escriba datos que no le corresponden es esta capa de reglas.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -----------------------------------------------------------------------
+    // Funciones auxiliares
+    // -----------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Lee el rol del usuario desde su propio documento de perfil.
+    //
+    // IMPORTANTE (costo): cada get() dentro de una regla cuenta como UNA
+    // LECTURA FACTURABLE, y se ejecuta en cada evaluación de la regla. Por eso
+    // se llama solo en las reglas de escritura de productos, que son
+    // infrecuentes (las hace un admin de vez en cuando), y nunca en las de
+    // lectura del catálogo, que se evalúan en cada visita.
+    //
+    // Si el documento del usuario no existe, get() falla y la regla deniega la
+    // operación. Eso es lo correcto: una identidad sin perfil no tiene rol, y
+    // asumir uno por defecto sería justamente el agujero a evitar.
+    function callerRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && callerRole() == 'admin';
+    }
+
+    // -----------------------------------------------------------------------
+    // Catálogo de productos
+    // -----------------------------------------------------------------------
+
+    match /products/{productId} {
+      // Lectura pública: el catálogo se muestra sin requerir sesión.
+      allow read: if true;
+
+      // Alta desde el panel de administración. Se valida el ROL y también la
+      // FORMA del documento: sin la segunda parte, un admin (o alguien con su
+      // sesión) podría escribir un producto sin "nameLower" y dejarlo invisible
+      // en las búsquedas, o sin "name" y romper el render del catálogo para
+      // todos los visitantes.
+      allow create: if isAdmin() && isValidProduct(request.resource.data);
+
+      // Editar y eliminar productos no existen todavía en la aplicación. Las
+      // reglas reflejan lo que la app realmente hace, no lo que podría llegar a
+      // hacer: habilitar por las dudas es exactamente lo contrario al principio
+      // de mínimo privilegio.
+      allow update, delete: if false;
+    }
+
+    function isValidProduct(data) {
+      // hasOnly rechaza campos que no estén en la lista. Sin esto, alguien
+      // podría inyectar campos arbitrarios en el documento (por ejemplo un
+      // "featured: true" que la app no espera) o hacer crecer la base sin
+      // control.
+      return data.keys().hasOnly(['name', 'nameLower', 'categoryId', 'price', 'imageUrl'])
+             && data.name is string
+             && data.name.size() > 0
+             && data.name.size() <= 120
+             && data.nameLower is string
+             // nameLower TIENE que ser el nombre en minúsculas. Es un campo
+             // técnico que sostiene la búsqueda por prefijo: si se pudiera
+             // escribir cualquier cosa ahí, un producto quedaría inencontrable.
+             && data.nameLower == data.name.lower()
+             && data.categoryId in ['calzado', 'ropa', 'accesorios', 'electronica', 'hogar']
+             && data.price is number
+             && data.price > 0
+             && data.imageUrl is string
+             // Solo https: una URL http:// en el atributo src de una <img>
+             // dispara advertencias de contenido mixto y puede ser interceptada.
+             && data.imageUrl.matches('https://.*');
+    }
+
+    // -----------------------------------------------------------------------
+    // Órdenes de compra
+    // -----------------------------------------------------------------------
+
+    match /orders/{orderId} {
+      // -------------------------------------------------------------------
+      // LECTURA: el dueño de la orden, o cualquier administrador
+      // -------------------------------------------------------------------
+      //
+      // "resource" es el documento que YA está en la base (a diferencia de
+      // "request.resource", que es el que se intenta escribir).
+      //
+      // ⚠ EL ORDEN DE LAS CONDICIONES IMPORTA, Y CUESTA DINERO.
+      //
+      // La comparación del userId va PRIMERO y isAdmin() al final, a propósito.
+      // isAdmin() hace un get() sobre users/{uid}, y cada get() dentro de una
+      // regla es una LECTURA FACTURABLE. Estas expresiones cortocircuitan: si el
+      // primer término del || ya es verdadero, el segundo no se evalúa.
+      //
+      // Con este orden, un cliente que lista sus 20 órdenes no dispara ningún
+      // get(). Con el orden invertido, pagaría una lectura extra por cada
+      // documento del listado sin obtener nada a cambio.
+      //
+      // Para una consulta de listado, Firestore evalúa esta regla contra cada
+      // documento devuelto: si alguno falla, falla la consulta entera. Por eso
+      // un cliente SOLO puede listar con where('userId','==',su uid), mientras
+      // que un admin puede listar sin filtro (isAdmin() no depende del
+      // documento, así que se cumple para todos).
+      allow read: if isSignedIn()
+                  && (resource.data.userId == request.auth.uid || isAdmin());
+
+      // -------------------------------------------------------------------
+      // CREACIÓN: solo el propio usuario, y siempre en estado inicial
+      // -------------------------------------------------------------------
+      allow create: if isSignedIn()
+                    // hasOnly rechaza cualquier campo que no esté en la lista.
+                    // Sin esto, alguien podría llamar al SDK desde la consola
+                    // del navegador e inyectar campos que la app no espera (un
+                    // "descuento: 100", o un blob de un megabyte).
+                    // updatedAt NO está en la lista: una orden recién creada
+                    // nunca fue actualizada.
+                    && request.resource.data.keys().hasOnly(
+                         ['userId', 'items', 'total', 'status', 'createdAt']
+                       )
+                    // Nadie puede crear una orden a nombre de otro usuario.
+                    && request.resource.data.userId == request.auth.uid
+                    // El estado inicial siempre es 'pending': así nadie puede
+                    // insertar una orden ya marcada como completada.
+                    && request.resource.data.status == 'pending'
+                    // Patrón oficial de Firebase para confirmar que el campo se
+                    // escribió con serverTimestamp() real, y no con una fecha
+                    // armada a mano del lado del cliente. Es lo que garantiza
+                    // que el orden cronológico del historial sea confiable.
+                    && request.resource.data.createdAt == request.time
+                    && isValidOrderShape(request.resource.data);
+
+      // -------------------------------------------------------------------
+      // ACTUALIZACIÓN: solo un admin, solo el estado, y solo si la transición
+      // es válida
+      // -------------------------------------------------------------------
+      allow update: if isAdmin()
+                    // diff().affectedKeys() son los campos EFECTIVAMENTE
+                    // MODIFICADOS. Es la diferencia clave con
+                    // request.resource.data.keys(), que describe el documento
+                    // final completo: con keys() habría que listar todos los
+                    // campos de la orden y no se estaría restringiendo nada.
+                    //
+                    // Con hasOnly, cualquier intento de tocar total, userId,
+                    // items o createdAt —solo o junto con status— se rechaza.
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasOnly(['status', 'updatedAt'])
+                    // El estado tiene que cambiar de verdad. Sin esto se podría
+                    // "actualizar" una orden sin modificarla, pisando updatedAt
+                    // con un cambio que nunca ocurrió.
+                    && request.resource.data.diff(resource.data)
+                         .affectedKeys().hasAny(['status'])
+                    // updatedAt es obligatorio y tiene que venir del servidor.
+                    // El enunciado lo da como opcional; acá se exige, porque una
+                    // orden que cambió de estado sin dejar constancia de cuándo
+                    // es un registro peor que inútil para auditar.
+                    && request.resource.data.updatedAt == request.time
+                    && isValidTransition(
+                         resource.data.status, request.resource.data.status
+                       );
+
+      // Una orden es un registro histórico: no se borra nunca. Si hiciera falta
+      // "deshacer" una compra, eso es una transición a 'cancelled', que deja
+      // rastro — no una eliminación, que lo borra.
+      allow delete: if false;
+    }
+
+    // =======================================================================
+    // VERIFICACIÓN DE LOS ÍTEMS CONTRA EL CATÁLOGO
+    // =======================================================================
+    //
+    // El lenguaje de las reglas NO puede recorrer un array: no hay bucles ni
+    // map/reduce. Pero SÍ puede acceder a una posición concreta con notación de
+    // corchetes (`items[0]`), que es lo que la documentación oficial recomienda
+    // para validar listas: "You must validate specific entries or keys
+    // individually using bracket notation".
+    //
+    // De ahí este desenrollado: una llamada por posición, de 0 a 9. Feo, pero es
+    // lo que permite verificar el precio de CADA ítem contra el catálogo — la
+    // misma protección que el proyecto anterior lograba con una subcolección, y
+    // que se había perdido al pasar a ítems embebidos.
+    //
+    // ⚠⚠ EL TOPE DE 10 ÍTEMS NO ES ARBITRARIO: ES EL TECHO DE LA PLATAFORMA ⚠⚠
+    //
+    // Firestore permite un MÁXIMO DE 10 llamadas a get()/exists() por request de
+    // un solo documento. Pasarse devuelve permission-denied. Cada ítem consume
+    // una (el get() del producto), así que con 10 ítems distintos estamos
+    // EXACTAMENTE EN EL LÍMITE, sin margen.
+    //
+    // Consecuencias que hay que tener presentes antes de tocar esta regla:
+    //
+    //   · NO se puede subir el tope de ítems sin romper las creaciones.
+    //   · NO se puede agregar NINGÚN get() más a `allow create` — ni siquiera
+    //     un isAdmin() — sin bajar antes el tope.
+    //   · Dos ítems del mismo producto consumen UNA sola llamada: los get()
+    //     repetidos al mismo documento se cachean y no cuentan de nuevo.
+    //
+    // El tope está duplicado en MAX_ITEMS_PER_ORDER (src/types/order.ts) para
+    // que el cliente falle antes con un mensaje claro. Acá es donde se aplica
+    // de verdad.
+    // =======================================================================
+
+    // Precio actual de un producto del catálogo. Si el documento no existe,
+    // get() falla y la regla que la invoca deniega la operación — que es lo
+    // correcto: no se puede comprar algo que no está en el catálogo.
+    function precioDeCatalogo(productId) {
+      return get(/databases/$(database)/documents/products/$(productId)).data.price;
+    }
+
+    // Valida el ítem en la posición i, si existe.
+    //
+    // El primer término cortocircuita: cuando la lista es más corta que i, la
+    // condición se cumple sin evaluar nada más y sin gastar ninguna llamada.
+    // Por eso una orden de 2 ítems cuesta 2 get(), no 10.
+    function itemValido(items, i) {
+      return items.size() <= i
+             || (items[i].keys().hasOnly(['productId', 'name', 'priceAtPurchase', 'quantity'])
+                 && items[i].productId is string
+                 && items[i].name is string
+                 && items[i].name.size() > 0
+                 && items[i].name.size() <= 120
+                 && items[i].quantity is int
+                 && items[i].quantity > 0
+                 // Mismo tope que MAX_QUANTITY_PER_ITEM en cartConstants.ts.
+                 && items[i].quantity <= 99
+                 // LA LÍNEA QUE CIERRA EL AGUJERO: el precio guardado tiene que
+                 // ser EXACTAMENTE el que figura hoy en el catálogo. Sin esto,
+                 // cualquier usuario podía comprar a su propio precio llamando
+                 // al SDK desde la consola del navegador.
+                 //
+                 // Efecto secundario aceptado: si un administrador cambia el
+                 // precio de un producto, los carritos que ya lo tenían dejan de
+                 // poder confirmarse.
+                 && items[i].priceAtPurchase == precioDeCatalogo(items[i].productId));
+    }
+
+    // Importe de la línea i, o 0 si esa posición no existe.
+    function subtotal(items, i) {
+      return items.size() <= i ? 0 : items[i].priceAtPurchase * items[i].quantity;
+    }
+
+    // Suma de todas las líneas. No gasta ninguna llamada a get(): solo lee
+    // valores que ya están en el documento que se intenta escribir.
+    function sumaDeLineas(items) {
+      return subtotal(items, 0) + subtotal(items, 1) + subtotal(items, 2)
+             + subtotal(items, 3) + subtotal(items, 4) + subtotal(items, 5)
+             + subtotal(items, 6) + subtotal(items, 7) + subtotal(items, 8)
+             + subtotal(items, 9);
+    }
+
+    function isValidOrderShape(data) {
+      return data.userId is string
+             && data.userId.size() > 0
+             && data.total is number
+             && data.total > 0
+             && data.items is list
+             && data.items.size() > 0
+             && data.items.size() <= 10
+             && itemValido(data.items, 0)
+             && itemValido(data.items, 1)
+             && itemValido(data.items, 2)
+             && itemValido(data.items, 3)
+             && itemValido(data.items, 4)
+             && itemValido(data.items, 5)
+             && itemValido(data.items, 6)
+             && itemValido(data.items, 7)
+             && itemValido(data.items, 8)
+             && itemValido(data.items, 9)
+             // El total tiene que coincidir con la suma de las líneas, con una
+             // tolerancia de UN CENTAVO.
+             //
+             // La tolerancia no es pereza: el cliente redondea cada línea a dos
+             // decimales antes de sumar (para que el total coincida con lo que
+             // muestra en pantalla) y las reglas no tienen función de redondeo.
+             // Con precios decimales, una comparación exacta rechazaría órdenes
+             // legítimas por el error de punto flotante — 10.55 × 3 da
+             // 31.650000000000002 en aritmética de coma flotante.
+             //
+             // Un centavo de margen no habilita ningún abuso: los precios de
+             // cada ítem ya están verificados uno por uno contra el catálogo.
+             && data.total >= sumaDeLineas(data.items) - 0.01
+             && data.total <= sumaDeLineas(data.items) + 0.01;
+    }
+
+    // Transiciones permitidas entre estados.
+    //
+    // Réplica exacta de src/features/orders/orderTransitions.ts. La duplicación
+    // es deliberada y necesaria: deshabilitar una opción en el <select> ayuda al
+    // usuario honesto, pero no detiene a nadie que llame al SDK desde la consola
+    // del navegador. Esta copia es la que se aplica de verdad.
+    //
+    // 'completed' y 'cancelled' son terminales: no aparecen como origen en
+    // ninguna rama, así que cualquier intento de salir de ellos devuelve false.
+    // Eso también impide "descancelar" una orden.
+    //
+    // SI SE CAMBIAN LAS TRANSICIONES EN EL CÓDIGO, HAY QUE CAMBIARLAS ACÁ.
+    function isValidTransition(current, next) {
+      return (current == 'pending' && next in ['processing', 'cancelled'])
+             || (current == 'processing' && next in ['completed', 'cancelled']);
+    }
+
+    // -----------------------------------------------------------------------
+    // Perfiles de usuario
+    // -----------------------------------------------------------------------
+
+    match /users/{uid} {
+      // Un usuario solo puede leer su propio perfil.
+      //
+      // ⚠ ESTA REGLA SOSTIENE LA SUBIDA DE IMÁGENES. No es solo para la app.
+      //
+      // La Vercel Function de api/uploads/presign.ts lee este documento para
+      // averiguar si quien pide subir una imagen es admin, y lo hace con el
+      // token DEL PROPIO USUARIO — no con credenciales de administrador. O sea
+      // que es esta regla la que autoriza esa lectura.
+      //
+      // Consecuencia práctica: si se restringe o se elimina, el panel de
+      // administración deja de poder subir imágenes, y el fallo aparece como un
+      // error del servidor sin relación aparente con las reglas.
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Alta del perfil: solo el propio usuario recién creado en Auth puede
+      // crear su documento (nunca en nombre de otro uid), y el rol queda
+      // forzado a "customer" a nivel de reglas — coincide con
+      // createUserProfile(), que nunca acepta el rol como parámetro externo,
+      // pero esta regla es la que de verdad lo garantiza aunque alguien
+      // intente escribir directo con el SDK, sin pasar por la app.
+      //
+      // Además de "role", se valida la forma completa del documento: sin
+      // esto, alguien podría escribir { role: "customer" } a secas (pasando
+      // la regla) y crear un perfil sin email/displayName/createdAt, que
+      // después rompe la lectura (userDocSchema.parse falla) dejando la
+      // cuenta inutilizable de forma permanente.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == 'customer'
+                    && request.resource.data.email is string
+                    && request.resource.data.email.size() > 0
+                    && request.resource.data.displayName is string
+                    && request.resource.data.createdAt == request.time;
+
+      // Actualización: el dueño del documento puede modificar su propio
+      // perfil, pero el campo "role" tiene que quedar exactamente igual al
+      // valor que ya tenía. Así, aunque alguien intente hacer
+      // updateDoc(doc(db, "users", miUid), { role: "admin" }) directamente
+      // desde la consola del navegador, Firestore rechaza la escritura.
+      // Un ascenso real a "admin" solo puede hacerse manualmente desde la
+      // Firebase Console (como indica el enunciado del homework), nunca
+      // desde el cliente.
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role;
+
+      // Sin baja de perfiles: no hay ningún flujo de "eliminar cuenta" en
+      // la app todavía.
+      allow delete: if false;
+    }
+  }
+}
