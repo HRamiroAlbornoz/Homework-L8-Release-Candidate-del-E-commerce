@@ -554,11 +554,19 @@ h1 {
   }
 }
 
+/* Mismo tratamiento de banner que el resto de los mensajes de error del
+   proyecto (fondo + borde propios, no solo texto de color): --error-text
+   suelto sobre el fondo translúcido del header da 4.41:1 en claro, por debajo
+   del 4.5:1 mínimo de AA. Con --error-bg como respaldo, el par ya está
+   verificado en 5.00:1 (claro) / 5.42:1 (oscuro). */
 .site-header__error {
   max-width: 1100px;
-  margin: 0 auto;
-  padding: 8px 16px 12px;
+  margin: 8px auto 0;
+  padding: 10px 16px;
+  background: var(--error-bg);
   color: var(--error-text);
+  border: 1px solid var(--error-border);
+  border-radius: 6px;
   font-size: 14px;
 }
 
