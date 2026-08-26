@@ -62,7 +62,9 @@ export function CartPage() {
       <div className="cart-page__summary">
         <p className="cart-page__total">
           Total ({totalItems} {totalItems === 1 ? "unidad" : "unidades"}):{" "}
-          <PriceTag amount={totalPrice} variant="tag" />
+          <strong>
+            <PriceTag amount={totalPrice} variant="tag" />
+          </strong>
         </p>
 
         <Link to="/checkout" className="cart-page__checkout-link">

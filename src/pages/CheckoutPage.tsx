@@ -236,7 +236,9 @@ export function CheckoutPage() {
 
       <p className="checkout__total">
         Total ({totalItems} {totalItems === 1 ? "unidad" : "unidades"}):{" "}
-        <PriceTag amount={totalPrice} variant="tag" />
+        <strong>
+          <PriceTag amount={totalPrice} variant="tag" />
+        </strong>
       </p>
 
       {muestraAvisoDeDemora && (
