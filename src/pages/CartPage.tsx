@@ -4,7 +4,7 @@ import { EmptyState } from "../components/states/EmptyState";
 import { CartItemRow } from "../features/cart/components/CartItemRow";
 import { useCart } from "../features/cart/useCart";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { formatPrice } from "../lib/formatPrice";
+import { PriceTag } from "../components/PriceTag";
 
 export function CartPage() {
   // Arriba de todo y ANTES del "return" temprano del carrito vacío: los hooks
@@ -62,7 +62,9 @@ export function CartPage() {
       <div className="cart-page__summary">
         <p className="cart-page__total">
           Total ({totalItems} {totalItems === 1 ? "unidad" : "unidades"}):{" "}
-          <strong>{formatPrice(totalPrice)}</strong>
+          <strong>
+            <PriceTag amount={totalPrice} variant="tag" />
+          </strong>
         </p>
 
         <Link to="/checkout" className="cart-page__checkout-link">

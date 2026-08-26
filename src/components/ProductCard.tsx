@@ -42,7 +42,9 @@ export function ProductCard({ product }: ProductCardProps) {
       <p className="product-card__category">{categoryLabel}</p>
       {product.price !== undefined && (
         <p className="product-card__price">
-          <PriceTag amount={product.price} variant="tag" />
+          <strong>
+            <PriceTag amount={product.price} variant="tag" />
+          </strong>
         </p>
       )}
       <AddToCartButton product={product} />

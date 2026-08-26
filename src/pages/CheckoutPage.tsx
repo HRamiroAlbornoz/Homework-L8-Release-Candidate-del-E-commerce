@@ -4,7 +4,7 @@ import { EmptyState } from "../components/states/EmptyState";
 import { useAuth } from "../contexts/AuthContext";
 import { useCart } from "../features/cart/useCart";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
-import { formatPrice } from "../lib/formatPrice";
+import { PriceTag } from "../components/PriceTag";
 import { ORDER_ERROR_CODES } from "../lib/orderErrorCodes";
 import { mapOrderError, OrderError } from "../lib/orderErrors";
 import { createOrderFromCart, createOrderId } from "../services/ordersService";
@@ -227,14 +227,18 @@ export function CheckoutPage() {
             <span>
               {item.name} × {item.quantity}
             </span>
-            <span>{formatPrice(Math.round(item.unitPrice * item.quantity * 100) / 100)}</span>
+            <span>
+              <PriceTag amount={Math.round(item.unitPrice * item.quantity * 100) / 100} />
+            </span>
           </li>
         ))}
       </ul>
 
       <p className="checkout__total">
         Total ({totalItems} {totalItems === 1 ? "unidad" : "unidades"}):{" "}
-        <strong>{formatPrice(totalPrice)}</strong>
+        <strong>
+          <PriceTag amount={totalPrice} variant="tag" />
+        </strong>
       </p>
 
       {muestraAvisoDeDemora && (

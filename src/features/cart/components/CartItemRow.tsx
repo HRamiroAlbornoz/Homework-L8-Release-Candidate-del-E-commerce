@@ -1,4 +1,4 @@
-import { formatPrice } from "@/lib/formatPrice";
+import { PriceTag } from "@/components/PriceTag";
 import type { CartItem } from "../types";
 import { useCart } from "../useCart";
 import { QuantitySelector } from "./QuantitySelector";
@@ -23,7 +23,9 @@ export function CartItemRow({ item }: CartItemRowProps) {
     <li className="cart-item">
       <div className="cart-item__info">
         <h2 className="cart-item__name">{item.name}</h2>
-        <p className="cart-item__unit-price">{formatPrice(item.unitPrice)} por unidad</p>
+        <p className="cart-item__unit-price">
+          <PriceTag amount={item.unitPrice} /> por unidad
+        </p>
       </div>
 
       <QuantitySelector
@@ -34,7 +36,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
 
       <p className="cart-item__subtotal">
         <span className="visually-hidden">Subtotal de {item.name}: </span>
-        {formatPrice(lineTotal)}
+        <PriceTag amount={lineTotal} />
       </p>
 
       <button

@@ -989,6 +989,9 @@ h1 {
   cursor: pointer;
 }
 
+/* Verificado con la nueva paleta: --error-text sobre --surface (el fondo de
+   .cart-item) da 4.91:1, pasa AA pero sin margen — no bajar el peso de
+   --error-text sin volver a chequear esto. */
 .cart-item__remove:hover {
   color: var(--error-text);
   border-color: var(--error-border);
