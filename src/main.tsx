@@ -1,6 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
+// Tipografías auto-hospedadas (sin request a Google Fonts): versionadas en
+// package-lock.json, Vite las trata como assets estáticos. Se importa un
+// archivo por peso, y solo los pesos que el CSS realmente usa hoy: 600 (display)
+// y 600 (mono) se suman recién en el PR que los use, no antes.
+import "@fontsource/big-shoulders-display/700";
+import "@fontsource/public-sans/400.css";
+import "@fontsource/public-sans/600.css";
+import "@fontsource/public-sans/700.css";
+import "@fontsource/ibm-plex-mono/400.css";
 import "./index.css";
 import App from "./App.tsx";
 import { AuthProvider } from "./contexts/AuthContext.tsx";
