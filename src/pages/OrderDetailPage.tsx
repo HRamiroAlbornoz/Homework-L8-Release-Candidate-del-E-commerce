@@ -1,12 +1,12 @@
 import { Link, useParams } from "react-router";
 import { OrderStatusBadge } from "../components/orders/OrderStatusBadge";
+import { PriceTag } from "../components/PriceTag";
 import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
 import { LoadingState } from "../components/states/LoadingState";
 import { useOrderDetail } from "../features/orders/useOrderDetail";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { formatDateTime } from "../lib/formatDate";
-import { formatPrice } from "../lib/formatPrice";
 import { ORDER_ERROR_CODES } from "../lib/orderErrorCodes";
 import { OrderError } from "../lib/orderErrors";
 
@@ -148,9 +148,13 @@ export function OrderDetailPage() {
                   o fue eliminado, esta pantalla tiene que seguir mostrando lo
                   que realmente se pagó.
                 */}
-                <td>{formatPrice(item.priceAtPurchase)}</td>
+                <td>
+                  <PriceTag amount={item.priceAtPurchase} />
+                </td>
                 <td>{item.quantity}</td>
-                <td>{formatPrice(Math.round(item.priceAtPurchase * item.quantity * 100) / 100)}</td>
+                <td>
+                  <PriceTag amount={Math.round(item.priceAtPurchase * item.quantity * 100) / 100} />
+                </td>
               </tr>
             ))}
           </tbody>
@@ -164,7 +168,9 @@ export function OrderDetailPage() {
                 Total
               </th>
               <td>
-                <strong>{formatPrice(total)}</strong>
+                <strong>
+                  <PriceTag amount={total} variant="tag" />
+                </strong>
               </td>
             </tr>
           </tfoot>
