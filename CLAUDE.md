@@ -166,12 +166,20 @@ Todo componente que fetchea datos maneja `loading`/`error`/`success` explícitam
 
 ### Infraestructura de tests
 
-**Pendiente de reconstrucción.** Este repo parte del Homework L8 anterior (Checkout + Orders), pero la suite de tests se borró a propósito para rehacerla desde cero como ejercicio del homework "Release Candidate del E-commerce" (Vitest/RTL/MSW, `src/test/` con `setup.ts`, `fixtures.ts`, `renderWithProviders.tsx`). Esta sección se reescribe con el diseño real al cerrar el Paso 8 del enunciado — hasta entonces, no asumir que `src/test/` existe.
+`src/test/` concentra lo compartido: `setup.ts` (matchers de jest-dom, limpieza de `localStorage` entre tests, ciclo de vida de MSW), `fixtures.ts` y `renderWithProviders.tsx`.
+
+Reglas que no son obvias y que ya causaron problemas reales en esta rama:
+
+- **`renderWithProviders` compone solo `MemoryRouter` + `CartProvider`.** No incluye `AuthProvider` ni `ProductsProvider` (se suscriben a Firebase real al montar, y arrastran `lib/env.ts`, que valida las variables de entorno al importarse y revienta sin `.env`). Los tests que necesitan sesión o catálogo mockean `useAuth`/`useProducts` con `vi.mock`.
+- **El default de `cartState` en `renderWithProviders` es un carrito vacío explícito, nunca `undefined`.** Si se dejara caer en el fallback de `CartProvider` (`loadCartState()`, que lee `localStorage` real), un test que agregue algo al carrito dejaría ese resto para el siguiente test del mismo archivo — jsdom comparte un mismo `localStorage` entre todos los tests de un archivo, Vitest aísla por archivo, no por `it`. `setup.ts` además limpia `localStorage` en un `afterEach` como segunda red de seguridad.
+- **`exactOptionalPropertyTypes` prohíbe reconstruir un objeto opcional desestructurado.** En `renderWithProviders.tsx`, reenviar `options` completo (en vez de desestructurar `route`/`cartState` para un objeto literal nuevo) evita el error de tipos Y el warning de variable no usada al mismo tiempo.
+- **MSW corre con `onUnhandledRequest: "error"`**: cualquier request sin handler rompe el test en vez de salir a la red. Los handlers del flujo de upload matchean el PUT por **path**, nunca incluyendo el query string en el patrón del handler (MSW lo desaconseja explícitamente); el query solo vive en el valor que devuelve la respuesta mockeada.
+- **Los fixtures de `uploadUrl`/`publicUrl` en `src/test/msw/handlers.ts` son deliberadamente distintos.** Si fueran el mismo string, un test no podría detectar la regresión de guardar la URL firmada en vez de la pública como imagen del producto.
 
 ## Documentación de decisiones ya escrita
 
 No repetir investigación ya resuelta — leer antes de tocar código relacionado:
 
 - [`docs/auth-notes.md`](docs/auth-notes.md): tabla de códigos de error de Firebase incluidos/descartados, el experimento de comentar el chequeo de `loading` en `ProtectedRoute`, code review de seguridad, preguntas de reflexión del enunciado, el caso borde de usuario autenticado sin perfil en Firestore, y un bug real de sesión ya diagnosticado y corregido (`createdAt` sin resolver justo después del signup — requiere `serverTimestamps: "estimate"` al leer con `snapshot.data()`).
-
-**Pendiente**: `production-checklist.md` y `docs/ai-notes.md` se rehacen para este repo en el Paso 8 del enunciado (checklist de producción propio + notas de uso de IA propias, con evidencia de este deploy). Los del homework anterior no se copiaron porque documentaban una entrega distinta.
+- [`docs/ai-notes.md`](docs/ai-notes.md): las tres intervenciones de IA de este repo (tests de `cartReducer`, los dos flow tests del Paso 6, y el deploy en Vercel), con lo aceptado y lo corregido en cada una.
+- [`production-checklist.md`](production-checklist.md): checklist de producción con evidencia real del deploy y 5 notas de debugging (CI rojo transitorio, warning de `act()`, warning de MSW, CORS de S3 en el dominio nuevo, y un glitch de terminal que casi commitea directo a `main`).
