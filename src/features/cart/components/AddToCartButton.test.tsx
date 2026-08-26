@@ -9,15 +9,17 @@ import { CartBadge } from "./CartBadge";
 // observable REAL del click (el contador del carrito cambia), en vez de
 // confiar únicamente en el feedback visual del propio botón.
 describe("AddToCartButton", () => {
-  it("al hacer click, agrega el producto al carrito y muestra el feedback momentáneo", async () => {
-    const user = userEvent.setup();
+  beforeEach(() => {
     renderWithProviders(
       <>
         <CartBadge />
         <AddToCartButton product={productFixture} />
       </>,
     );
+  });
 
+  it("al hacer click, agrega el producto al carrito y muestra el feedback momentáneo", async () => {
+    const user = userEvent.setup();
     const button = screen.getByRole("button", {
       name: `Agregar al carrito ${productFixture.name}`,
     });
@@ -32,13 +34,6 @@ describe("AddToCartButton", () => {
 
   it("tres clicks seguidos suman tres unidades, sin intermitencia", async () => {
     const user = userEvent.setup();
-    renderWithProviders(
-      <>
-        <CartBadge />
-        <AddToCartButton product={productFixture} />
-      </>,
-    );
-
     // Misma referencia de botón en los tres clicks: React no reemplaza el
     // <button> al cambiar su label ("Agregar al carrito" -> "¡Agregado!"),
     // solo actualiza su contenido, así que la referencia sigue siendo válida.

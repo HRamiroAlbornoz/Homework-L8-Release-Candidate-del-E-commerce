@@ -51,7 +51,7 @@ describe("ProductsPage", () => {
   });
 
   it("estado vacío: muestra el mensaje de catálogo vacío cuando no hay productos", () => {
-    mockProductsState({ products: [] });
+    mockProductsState({}); // sin productos: ya es el default del helper
 
     renderWithProviders(<ProductsPage />);
 
