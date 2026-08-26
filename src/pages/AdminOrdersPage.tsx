@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { OrderStatusBadge } from "../components/orders/OrderStatusBadge";
+import { PriceTag } from "../components/PriceTag";
 import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
 import { LoadingState } from "../components/states/LoadingState";
@@ -9,7 +10,6 @@ import { getAllowedTransitions } from "../features/orders/orderTransitions";
 import { useAdminOrders } from "../features/orders/useAdminOrders";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { formatDateTime } from "../lib/formatDate";
-import { formatPrice } from "../lib/formatPrice";
 import { updateOrderStatus } from "../services/ordersService";
 import { orderStatusSchema, type Order, type OrderStatus } from "../types/order";
 
@@ -208,7 +208,9 @@ export function AdminOrdersPage() {
                     </time>
                   </td>
                   <td>{countOrderUnits(order)}</td>
-                  <td>{formatPrice(order.total)}</td>
+                  <td>
+                    <PriceTag amount={order.total} />
+                  </td>
                   <td>
                     <OrderStatusBadge status={order.status} />
                   </td>

@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import { OrderStatusBadge } from "../components/orders/OrderStatusBadge";
+import { PriceTag } from "../components/PriceTag";
 import { EmptyState } from "../components/states/EmptyState";
 import { ErrorState } from "../components/states/ErrorState";
 import { LoadingState } from "../components/states/LoadingState";
@@ -8,7 +9,6 @@ import { countOrderUnits } from "../features/orders/orderSummary";
 import { useCustomerOrders } from "../features/orders/useCustomerOrders";
 import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { formatDateTime } from "../lib/formatDate";
-import { formatPrice } from "../lib/formatPrice";
 
 export function OrdersPage() {
   // Antes de cualquier return temprano: los hooks tienen que ejecutarse siempre,
@@ -78,7 +78,9 @@ export function OrdersPage() {
                 {countOrderUnits(order)} {countOrderUnits(order) === 1 ? "unidad" : "unidades"}
               </span>
 
-              <strong className="orders-list__total">{formatPrice(order.total)}</strong>
+              <strong className="orders-list__total">
+                <PriceTag amount={order.total} />
+              </strong>
             </Link>
           </li>
         ))}
