@@ -198,8 +198,12 @@ h1 {
   color: var(--text-muted);
 }
 
-.search-bar input,
-.category-filter select {
+/* Separado a propósito de .category-filter select (antes era una sola regla
+   compartida): son dos controles con roles distintos — el buscador queda como
+   campo de texto liso, el filtro se restyla como pestaña de carpeta más
+   abajo — y una regla en común los volvería a igualar sin que nadie lo note
+   en el próximo cambio. */
+.search-bar input {
   min-height: 44px; /* área táctil mínima en mobile */
   padding: 8px 12px;
   font-size: 16px;
@@ -220,30 +224,67 @@ h1 {
   opacity: 1;
 }
 
+.search-bar input:hover {
+  border-color: var(--accent);
+}
+
+.search-bar input:focus {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-bar input {
+    transition: none;
+  }
+}
+
+/* Silueta de pestaña de carpeta: separador entre el catálogo y su filtro. El
+   borde inferior grueso en --accent es lo que sugiere la pestaña; el resto de
+   la caja usa --surface-raised para diferenciarse del buscador de al lado. */
+.category-filter select {
+  min-height: 44px; /* área táctil mínima en mobile */
+  padding: 8px 32px 8px 12px; /* extra a la derecha: no tapar la flecha nativa */
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border: 1px solid var(--border);
+  border-bottom: 3px solid var(--accent);
+  border-radius: 4px 4px 0 0;
+  background: var(--surface-raised);
+  color: var(--text);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
 /* Las <option> no heredan el fondo del <select>: por defecto son
    transparentes, así que el navegador cae en su fondo nativo (casi siempre
    claro, sin importar el tema de la página) mientras el texto ya usa
    --text, claro en modo oscuro. Resultado: texto claro sobre fondo claro,
    invisible salvo que el highlight nativo del hover lo tape. Fijar el
-   fondo acá resuelve el contraste en ambos temas. */
+   fondo acá resuelve el contraste en ambos temas.
+   Limitación aceptada: la lista de <option> y la flecha nativa no se pueden
+   re-estilizar por completo en ningún navegador — no vale la pena un hack
+   frágil (clip-path arriesga el :focus-visible, appearance:none con flecha
+   custom tiene soporte inconsistente, sobre todo en iOS Safari). */
 .category-filter select option {
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: normal;
   background-color: var(--surface);
   color: var(--text);
 }
 
-.search-bar input:hover,
 .category-filter select:hover {
   border-color: var(--accent);
 }
 
-.search-bar input:focus,
 .category-filter select:focus {
   border-color: var(--accent);
   background: var(--accent-soft);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .search-bar input,
   .category-filter select {
     transition: none;
   }
@@ -376,16 +417,44 @@ h1 {
      mínima. Así el precio nunca queda pegado al botón, ni siquiera en la
      tarjeta más alta de la fila. */
   margin: 0 0 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 600;
 }
 
-.product-card__price::before {
-  content: "🏷" / "";
-  font-size: 14px;
-  line-height: 1;
+/* ---------------------------------------------------------------------------
+   PriceTag — la etiqueta física del almacén: agujerito + rotación fija.
+   No es una animación (la rotación es estática), así que no necesita gate de
+   prefers-reduced-motion; esa media query es para transiciones/animaciones.
+   --------------------------------------------------------------------------- */
+.price-tag {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.price-tag--inline {
+  font-size: inherit;
+  color: inherit;
+}
+
+.price-tag--tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-h);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  transform: rotate(-2deg);
+}
+
+.price-tag__hole {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
 }
 
 .load-more-button {
