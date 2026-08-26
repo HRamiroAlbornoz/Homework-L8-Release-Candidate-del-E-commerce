@@ -18,12 +18,14 @@ Producción: https://homework-l9-release-candidate-del-e.vercel.app/
 - [x] Variables públicas de cliente usan `VITE_` y se consumen con `import.meta.env`
 - [x] Secretos NO usan `VITE_` (solo server / Vercel Functions con `process.env`)
       Nota: 10 variables cargadas en Vercel — 6 `VITE_FIREBASE_*` (cliente) + 4 `S3_*` (solo `api/uploads/presign.ts`, vía `process.env`). Ninguna se pegó nunca en esta conversación; se cargaron directo en el dashboard de Vercel.
-- [x] Se redeployeó luego de cambios de env vars en Vercel
-      Nota: no hizo falta un redeploy posterior — las 10 variables se cargaron ANTES del primer deploy (Vercel las incluye en el build inicial).
+- [ ] Se redeployeó luego de cambios de env vars en Vercel
+      No aplicable todavía: las 10 variables se cargaron ANTES del primer deploy, así que no hubo un cambio posterior que forzara un redeploy. Queda sin marcar (no "hecho") a propósito — la próxima vez que se agregue o cambie una variable, hay que volver acá y sí tildarlo tras confirmar el redeploy.
 
 ## App Smoke Tests (Production)
 
-Verificado en el navegador (Chrome DevTools MCP) contra la URL de producción, con las cuentas de prueba reales:
+Verificado en el navegador (Chrome DevTools MCP) contra la URL de producción, con las cuentas de prueba reales.
+
+**Nota sobre el flujo preview → producción**: este fue el primer deploy del proyecto (importación inicial desde GitHub), así que no existía todavía un preview previo contra el cual probar antes de promover — el primer build importado se convierte directamente en la producción, no hay nada que "promover" todavía. La regla de probar en preview antes de producción aplica de acá en adelante: el PR #9 ya generó su propio preview deploy automático, confirmando que el flujo está andando. El costo de no haber podido aplicarla en este primer deploy se ve en la nota del ítem de upload de imagen más abajo: el problema de CORS se descubrió recién en producción, exactamente el tipo de falla que ese paso existe para atrapar antes.
 
 - [x] La home/catálogo carga sin errores — sin mensajes en consola, productos con precio y categoría correctos.
 - [x] Login / Logout funciona — probado con cuenta `customer` y cuenta `admin`.
