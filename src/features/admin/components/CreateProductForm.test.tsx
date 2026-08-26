@@ -41,18 +41,25 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
 
 describe("CreateProductForm — flow de alta con imagen (MSW)", () => {
   it("sube la imagen (presign + PUT, en ese orden) y crea el producto", async () => {
-    const uploadUrl = "https://fake-bucket.s3.test/uploads/orden.png";
+    // Deliberadamente distintas: si el código guardara por error la URL
+    // FIRMADA (uploadUrl, de corta duración) en vez de la PÚBLICA como imagen
+    // del producto, esta aserción tiene que poder detectarlo.
+    const uploadPath = "https://fake-bucket.s3.test/uploads/orden.png";
+    const uploadUrl = `${uploadPath}?X-Amz-Signature=fake`;
+    const publicUrl = uploadPath;
     const requestOrder: string[] = [];
 
     // Se pisan los handlers default con unos que además registran el orden:
     // es la forma concreta de comprobar "la UI hace las requests en orden"
-    // que pide el enunciado, no solo que las dos hayan pasado.
+    // que pide el enunciado, no solo que las dos hayan pasado. El PUT se
+    // matchea contra el path sin query (MSW lo ignora en la request
+    // entrante); declararlo en el patrón del handler dispara un warning.
     server.use(
       http.post(PRESIGN_ENDPOINT, () => {
         requestOrder.push("presign");
-        return HttpResponse.json({ uploadUrl, publicUrl: uploadUrl, key: "orden.png" });
+        return HttpResponse.json({ uploadUrl, publicUrl, key: "orden.png" });
       }),
-      http.put(uploadUrl, () => {
+      http.put(uploadPath, () => {
         requestOrder.push("put");
         return new HttpResponse(null, { status: 200 });
       }),
@@ -70,14 +77,14 @@ describe("CreateProductForm — flow de alta con imagen (MSW)", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Zapatillas de prueba" })).toHaveAttribute(
       "src",
-      uploadUrl,
+      publicUrl,
     );
     expect(requestOrder).toEqual(["presign", "put"]);
     expect(mockedCreateProduct).toHaveBeenCalledWith({
       name: "Zapatillas de prueba",
       categoryId: "calzado",
       price: 100,
-      imageUrl: uploadUrl,
+      imageUrl: publicUrl,
     });
   });
 
