@@ -6,10 +6,12 @@ Construido sobre la base de los homeworks anteriores (autenticación, catálogo,
 
 | | |
 |---|---|
-| Tests | *(pendiente — la suite se reconstruye desde cero, ver `CLAUDE.md`)* |
+| Tests | 30 en 7 archivos (reducer, hook, componente, 2 flows con mocks/MSW) |
 | Pruebas de reglas | 28 contra Firestore real (`npm run verify:rules`) |
 | CI | Lint, type-check, tests y build en cada push y PR |
-| Decisiones y uso de IA | *(pendiente — se agrega en el Paso 8, `docs/ai-notes.md`)* |
+| Deploy | [Production](https://homework-l9-release-candidate-del-e.vercel.app/) |
+| Decisiones y uso de IA | [`docs/ai-notes.md`](docs/ai-notes.md) |
+| Checklist de producción | [`production-checklist.md`](production-checklist.md) |
 
 ## Stack
 
@@ -196,7 +198,17 @@ Crea dos órdenes de prueba y **las borra al terminar** con el SDK de Admin, den
 
 ## Testing
 
-**Pendiente de reconstrucción.** La suite de tests del Homework L8 anterior se borró a propósito: este repo la rehace desde cero siguiendo los 8 pasos del enunciado "Release Candidate del E-commerce" (setup de Vitest/RTL, fixtures + `renderWithProviders`, `cartReducer`, hook, componente, flow con mocks). Esta sección se completa con los comandos y las convenciones reales al terminar esa reconstrucción.
+```bash
+npm run test              # toda la suite
+npx vitest                # modo watch
+npx vitest run <archivo>  # un archivo puntual
+```
+
+**Los tests no usan red real.** Firebase (`AuthContext`, `lib/firebase`) y los services que tocan Firestore (`ordersService`, `productsService`) se mockean con `vi.mock` puntualmente en cada test que los necesita; las dos requests HTTP del flujo de subida de imágenes (`POST /api/uploads/presign` y el `PUT` a S3) las intercepta MSW con `onUnhandledRequest: "error"`, así que cualquier request sin handler rompe el test en vez de salir a internet. La suite pasa sin archivo `.env` y sin conexión.
+
+`src/test/renderWithProviders.tsx` compone solo `MemoryRouter` + `CartProvider` (los dos providers "puros" de esta app): el `AuthProvider`/`ProductsProvider` reales se suscriben a Firebase al montar y arrastran `lib/env.ts`, que revienta sin variables de entorno. Los tests que necesitan sesión o catálogo mockean `useAuth`/`useProducts` en su lugar.
+
+Cobertura: `cartReducer` (14 tests, función pura con Given/When/Then), `useCart` (`renderHook`, prioriza `UPDATE_QUANTITY`), interacción de `AddToCartButton` + estados de `ProductsPage` (loading/error/empty/success), y dos flow tests con mocks: checkout (éxito, error, no-doble-submit) y alta de producto con imagen vía MSW (verificando el ORDEN real de las dos requests, no solo que ambas ocurrieron).
 
 ## Seguridad
 
