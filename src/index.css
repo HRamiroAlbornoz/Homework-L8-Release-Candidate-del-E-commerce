@@ -1,36 +1,50 @@
-/* Paleta y variables: tema claro por defecto, oscuro vía prefers-color-scheme */
+/* Paleta y variables: tema claro por defecto, oscuro vía prefers-color-scheme.
+   Dirección "Almacén / Ficha de Inventario": papel kraft cálido, tinta de
+   sello como acento. Cada par texto/fondo lleva su ratio de contraste WCAG
+   2.1 verificado con la fórmula real (no a ojo). */
 :root {
-  --text: #2b2b33;
-  --text-muted: #6b6375;
-  --text-h: #08060d;
-  --bg: #fdfdfd;
-  --surface: #ffffff;
-  --border: #e0e0e6;
-  --accent: #7b3ff2;
-  --accent-contrast: #ffffff;
-  --error-bg: #fdecec;
-  --error-text: #7a1616;
-  --error-border: #e5a3a3;
-  --surface-raised: #ffffff;
-  --accent-soft: rgba(123, 63, 242, 0.1);
-  --shadow-card: 0 8px 24px rgba(43, 43, 51, 0.08);
-  --header-bg: rgba(255, 255, 255, 0.85);
+  --text: #1f2421;
+  /* Verificado: 5.19:1 contra --bg, 5.78:1 contra --surface (ambos > 4.5:1 AA). */
+  --text-muted: #675d4e;
+  --text-h: #171b18;
+  --bg: #ede6d6;
+  --surface: #f7f2e7;
+  --border: #c9bfa8;
+  --accent: #2b4570;
+  /* Verificado: 8.60:1 contra --accent como fondo de botón. NO blanco puro:
+     un tono cálido de --surface mantiene el papel kraft incluso en la tinta. */
+  --accent-contrast: #f7f2e7;
+  /* Tono propio (no --bg/--surface reusado): --error-text sobre --bg da
+     4.41:1 y FALLA AA. Este valor derivado da 5.00:1. */
+  --error-bg: #fdf3e7;
+  --error-text: #b5451b;
+  --error-border: #d9a583;
+  --surface-raised: #fbf7ee;
+  --accent-soft: rgba(43, 69, 112, 0.1);
+  --shadow-card: 0 8px 24px rgba(37, 28, 20, 0.14);
+  --header-bg: rgba(247, 242, 231, 0.85);
 
-  /* Estados de una orden. Todos los pares texto/fondo se verificaron contra la
-     fórmula de contraste de WCAG 2.1: el más bajo da 6.86:1, muy por encima del
-     4.5:1 que exige el nivel AA para texto normal.
+  --font-display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  --font-body: "Public Sans", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", "Consolas", monospace;
+
+  /* Estados de una orden, retintados a tinta de sello sobre papel kraft.
+     Todos los pares se verificaron contra la fórmula de contraste de WCAG
+     2.1: el más bajo da 6.52:1, muy por encima del 4.5:1 que exige AA.
      El color acompaña pero nunca comunica solo: el badge siempre lleva el
      nombre del estado escrito (ver OrderStatusBadge.tsx). */
-  --status-pending-bg: #fff4e0;
-  --status-pending-text: #7a4a00;
-  --status-processing-bg: #e3f0ff;
-  --status-processing-text: #10437a;
-  --status-completed-bg: #e4f5e9;
-  --status-completed-text: #145c2e;
-  --status-cancelled-bg: #fdecec;
-  --status-cancelled-text: #7a1616;
+  --status-pending-bg: #f5e6c8;
+  --status-pending-text: #6b4a12; /* 6.52:1 */
+  --status-processing-bg: #dce3ee;
+  --status-processing-text: #1d3050; /* 10.23:1 */
+  --status-completed-bg: #dce9d9;
+  --status-completed-text: #1e4a28; /* 8.09:1 */
+  --status-cancelled-bg: var(--error-bg);
+  --status-cancelled-text: var(--error-text); /* 5.00:1 */
 
-  font: 16px/1.5 system-ui, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
   color-scheme: light dark;
   color: var(--text);
   background: var(--bg);
@@ -40,32 +54,35 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --text: #e4e4e7;
-    --text-muted: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --surface: #1f2028;
-    --border: #2e303a;
-    --accent: #c084fc;
-    --accent-contrast: #16171d;
-    --error-bg: #3a1f1f;
-    --error-text: #f3b4b4;
-    --error-border: #6b2c2c;
-    --surface-raised: #262832;
-    --accent-soft: rgba(192, 132, 252, 0.14);
-    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
-    --header-bg: rgba(31, 32, 40, 0.85);
+    --text: #ece6d8;
+    /* Verificado: 6.57:1 contra --bg, 5.90:1 contra --surface. */
+    --text-muted: #a79c89;
+    --text-h: #f5f1e4;
+    --bg: #17181a;
+    --surface: #202224;
+    --border: #33352f;
+    --accent: #6c93c7;
+    /* Verificado: 5.61:1. Blanco puro falla (3.16:1) contra este accent claro,
+       por eso el "papel" oscuro hace de tinta de contraste. */
+    --accent-contrast: #17181a;
+    --error-bg: #2e1d14;
+    --error-text: #e07a4e;
+    --error-border: #6b4530;
+    --surface-raised: #262924;
+    --accent-soft: rgba(108, 147, 199, 0.14);
+    --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --header-bg: rgba(32, 34, 36, 0.85);
 
-    /* Mismos estados, invertidos para fondo oscuro. También verificados: el par
-       más bajo da 8.25:1. */
-    --status-pending-bg: #3a2f1a;
-    --status-pending-text: #f5cf8a;
-    --status-processing-bg: #1c2f45;
-    --status-processing-text: #a8cdf5;
-    --status-completed-bg: #1c3a28;
-    --status-completed-text: #a3e0bb;
-    --status-cancelled-bg: #3a1f1f;
-    --status-cancelled-text: #f3b4b4;
+    /* Mismos estados, tinta clara sobre fondo oscuro. También verificados: el
+       par más bajo da 7.42:1. */
+    --status-pending-bg: #3a2a12;
+    --status-pending-text: #e8b65f; /* 7.42:1 */
+    --status-processing-bg: #1c2a3d;
+    --status-processing-text: #9dbedd; /* 7.48:1 */
+    --status-completed-bg: #16301f;
+    --status-completed-text: #97d9ac; /* 8.69:1 */
+    --status-cancelled-bg: var(--error-bg);
+    --status-cancelled-text: var(--error-text); /* 5.42:1 */
   }
 }
 
@@ -79,11 +96,17 @@ body {
   margin: 0;
 }
 
+/* Big Shoulders Display ya es condensada: el letter-spacing negativo que
+   tenía sentido con system-ui la apretaría de más, así que se retira acá. */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
 h1 {
   color: var(--text-h);
   font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
   margin: 0 0 16px;
 }
 
@@ -1264,7 +1287,7 @@ h1 {
 }
 
 .orders-list__id {
-  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
   color: var(--text-muted);
   /* El id es largo y no tiene espacios: sin esto desborda la tarjeta en móvil. */
@@ -1321,7 +1344,7 @@ h1 {
    -------------------------------------------------------------------------- */
 
 .order-detail__id {
-  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
   color: var(--text-muted);
   margin: 0 0 20px;
@@ -1568,7 +1591,7 @@ h1 {
 /* Los identificadores en monoespaciada: con ancho fijo por carácter, dos ids
    distintos se comparan de un vistazo en vez de tener que leerlos letra a letra. */
 .admin-orders__id {
-  font-family: ui-monospace, "Cascadia Code", "Consolas", monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text-muted);
   overflow-wrap: anywhere;
