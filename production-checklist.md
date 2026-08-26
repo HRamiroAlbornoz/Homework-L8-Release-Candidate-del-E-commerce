@@ -44,6 +44,20 @@ Verificado en el navegador (Chrome DevTools MCP) contra la URL de producción, c
 - [ ] Revisé logs de Vercel (Build / Runtime / Functions) ante fallos
       Pendiente: no hizo falta durante este smoke test porque todo funcionó al primer intento (salvo el CORS, que se diagnosticó por el error de red típico de CORS, no por logs de Vercel). Si algo falla más adelante, revisar Project → Deployments → Functions → `api/uploads/presign`.
 
+## Auditoría de accesibilidad — Rediseño visual (PRs #10-13)
+
+Verificación final tras el rediseño "Almacén / Ficha de Inventario" (paleta kraft, tipografías auto-hospedadas, componente `PriceTag`) aplicado a catálogo, carrito, checkout, admin y órdenes.
+
+- [x] Accesibilidad automatizada (Lighthouse/axe) en 100/100
+      Nota: corrido contra catálogo, carrito, checkout, admin/órdenes y admin/productos — 100/100 en accesibilidad en las 5 pantallas. Confirma con una herramienta real (no solo la fórmula manual) los contrastes ya documentados como comentarios en `index.css`.
+- [x] Foco visible verificado por teclado en el `<select>` restylado de `CategoryFilter`
+      Nota: el anillo de `:focus-visible` se mantiene con el nuevo tratamiento de pestaña (borde inferior de acento + tipografía mono).
+- [x] Breakpoints 768px/1024px revisados con la tipografía condensada
+      Nota: catálogo y la tabla de `AdminOrdersPage` (7 columnas, `min-width: 900px`) — a 768px activa su scroll horizontal propio, a 1024px entra sin scroll; la fuente condensada no rompe ningún layout.
+- [ ] QA cross-browser del `<select>` (Firefox/Safari)
+      Pendiente: la verificación automatizada de esta sesión solo cubre Chrome. El CSS no usa nada específico de un motor (sin `-webkit-appearance` ni hacks), así que el riesgo es bajo, pero queda para que Hernán lo confirme a mano si quiere cerrarlo del todo.
+- **Decisión: no se consolidaron los ~13 bloques de `prefers-reduced-motion` dispersos en `index.css`.** Cada uno vive junto a la transición que anula; agruparlos en un bloque único al final del archivo perdería esa localidad — el riesgo real es borrar un componente y olvidarse de borrar su override en una lista separada.
+
 ## Notas de debugging
 
 1. **CI rojo en el primer push a `main`** (bootstrap): `vitest run` salió con código 1 porque en ese momento `src/test/` estaba vacío a propósito (se habían borrado los tests del proyecto anterior para reescribirlos). Se resolvió solo al mergear el Paso 1 (primer test real).
@@ -51,3 +65,4 @@ Verificado en el navegador (Chrome DevTools MCP) contra la URL de producción, c
 3. **Warning de MSW por query params en el patrón del handler**: se registró `http.put(uploadUrl, ...)` con el query string (`?X-Amz-Signature=...`) incluido en el patrón. MSW lo desaconseja: el patrón debe matchear solo el path, y el query se inspecciona del lado de la request. Se corrigió separando `FAKE_UPLOAD_PATH` (para el patrón del handler) de `FAKE_UPLOAD_URL` (con query, el valor real que devuelve la respuesta mockeada).
 4. **CORS bloqueando la subida de imágenes en el dominio nuevo**: el bucket de S3 se reusa entre varios homeworks, y su configuración de CORS solo tenía habilitado el origin de un deploy de Vercel anterior (L7). Hubo que agregar el nuevo dominio (`homework-l9-release-candidate-del-e.vercel.app`) a `AllowedOrigins` antes de que la subida de imágenes funcionara en producción.
 5. **Glitch de terminal durante un rename**: un paste con caracteres de control (`[200~git checkout -b ...`) hizo que `git checkout -b` fallara en silencio, y los comandos siguientes terminaron committeando directo sobre `main` (protegida). Se resolvió creando la rama parada en ese mismo commit y devolviendo `main` local a `origin/main` con `git reset --hard` — seguro en ese caso puntual porque el commit ya estaba a salvo en la rama nueva antes de tocar `main`, y `main` nunca había llegado a pushearse con ese commit de más.
+6. **`fill`/`fill_form` de Chrome DevTools MCP no siempre dispara el evento de React al vaciar un campo de texto**: durante la revisión de flujos del rediseño, limpiar el buscador del catálogo con estas herramientas dejaba el DOM visualmente vacío pero nunca disparaba el `onChange` de React, así que el filtro quedaba pegado en el último resultado buscado. Escribir texto SÍ funciona con las mismas herramientas — el problema es específico de la transición a vacío. Se confirmó que era un artefacto de la herramienta de testing (no un bug de la app): se agregaron logs de debug temporales, se reprodujo la misma limpieza con teclado real (Backspace tecla por tecla), y el catálogo se restauró correctamente. Los logs se sacaron antes de commitear. Para probar "vaciar un campo" con esta MCP, usar teclado real en vez de `fill`/`fill_form`.
