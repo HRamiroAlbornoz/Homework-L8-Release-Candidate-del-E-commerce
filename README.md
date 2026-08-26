@@ -1,4 +1,4 @@
-# Release Candidate del E-commerce — Homework L8 (Henry, Módulo 5)
+# Release Candidate del E-commerce — Homework L9 (Henry, Módulo 5)
 
 Flujo de compra completo multi-rol sobre React + TypeScript + Firebase: el carrito se convierte en una **orden persistida** en Firestore, el cliente consulta su historial y su detalle, y un administrador lista, filtra y cambia estados desde un panel — todo con RBAC real en las reglas de seguridad, no solo en la interfaz.
 
